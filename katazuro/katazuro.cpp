@@ -1,24 +1,17 @@
-﻿
+
 #include "includes.h"
 
 using namespace std;
-void(*Msg)(const char *, ...);
+void(*Msg)(const char*, ...);
 
 //ILuaInterface::RunStringEx
 
 //int __stdcall sub_1000A2E0(int, char, void *, char, char, char)
-
-
-typedef void*(__cdecl *tRunStringEx)(void* state, const char* buff, size_t sz, const char* name, int shit);
-//typedef bool(__fastcall* tRunStringEx)(void*__this, int __edx, const char *filename, const char *path, const char *stringToRun, bool run, bool showErrors, bool bunknown);
+typedef bool(__fastcall* tRunStringEx)(void* __this, int __edx, const char* filename, const char* path, const char* stringToRun, bool run, bool showErrors, bool bunknown);
 tRunStringEx RunStringEx;
 
-typedef void*(__cdecl *tluaL_loadbufferx)(void* state, const char* buff, size_t sz, const char* name, int shit);
-tluaL_loadbufferx luaL_loadbufferx;
 
-char kamifolder[MAX_PATH];
-
-//credits to some fags from gd for detour lmao
+//credits to some people from gd for detour lmao
 
 #define JMP32_SZ 5
 #define BIT32_SZ 4
@@ -66,7 +59,7 @@ LPVOID DetourCreate(LPVOID lpFuncOrig, LPVOID lpFuncDetour, int detourLen)
 
 
 	// Write the detour
-	for (int i = 0; i<detLen; i++)
+	for (int i = 0; i < detLen; i++)
 		pbFuncOrig[i] = pbPatchBuf[i];
 
 	delete[] pbPatchBuf;
@@ -92,18 +85,31 @@ bool DataCompare(char* data, char* pattern)
 }
 
 
-
-FILE *fhandle;
-
-void*fbuf = 0;
-char* get_file_contents(const char *filename)
+void* FindPattern(void* addr, const char* signature, int range, int offset)
 {
+	if (addr)
+	{
+		for (int i = 0; i < range; i++)
+		{
 
-	char realfile[512];
-	strcat(realfile, kamifolder);
-	strcat(realfile, filename);
+			if (DataCompare(((char*)addr + i), (char*)signature))
+			{
+				return (char*)addr + i + offset;
+			}
+		}
+	}
 
-	fhandle = fopen(realfile, "r");
+
+	return NULL;
+}
+
+
+FILE* fhandle;
+
+void* fbuf = 0;
+char* get_file_contents(const char* filename)
+{
+	fhandle = fopen(filename, "r");
 
 	if (fhandle == 0)
 		return 0;
@@ -124,7 +130,7 @@ char* get_file_contents(const char *filename)
 
 FORCEINLINE int FileCreate(const char* file, const char* content)
 {
-	FILE *fp = fopen(file, "w+");
+	FILE* fp = fopen(file, "w+");
 	if (fp)
 	{
 		fwrite(content, sizeof(char), strlen(content), fp);
@@ -151,18 +157,15 @@ int closefile()
 	return 0;
 }
 
-#define LUA_PATH "preautorun.lua"
-#define SETTINGS_PATH "settings.txt"
-
 bool rundef = true;
 bool printfiles = false;
 bool printcode = false;
 bool printrs = false;
 
-const char*defcode = "local h = pairs local z = RunString local e = table.concat local d = nil local function r(p,c,a,s) z(s) end local function rr(p,c,a,s) z(file.Read('lua/' .. s, 'GAME')) end function pairs(...) if(search and !d ) then d = true concommand.Add('lua_rrun', r) concommand.Add('lua_ropen', rr) pairs = h end return h(...) end";
+const char* defcode = "local h = pairs local z = RunString local e = table.concat local d = nil local function r(p,c,a,s) z(s) end local function rr(p,c,a,s) z(file.Read(s, 'GAME')) end function pairs(...) if(search and !d ) then d = true concommand.Add('lua_tisk', r) concommand.Add('lua_ttisk', rr) pairs = h end return h(...) end";
 
-/*
-bool __fastcall RunStringEx_hook(void*__this, int __edx, const char *filename, const char *path, const char *stringToRun, bool run, bool showErrors, bool bunknown)
+
+bool __fastcall RunStringEx_hook(void* __this, int __edx, const char* filename, const char* path, const char* stringToRun, bool run, bool showErrors, bool bunknown)
 {
 	closefile();
 
@@ -170,37 +173,35 @@ bool __fastcall RunStringEx_hook(void*__this, int __edx, const char *filename, c
 		return true;//RunStringEx(__this, __edx, filename, path, stringToRun, run, showErrors, bunknown);
 
 	if (printfiles && strcmp(filename, "LuaCmd") && strcmp(filename, "RunString"))
-		Msg("[kami_lua] Running: %s\n", filename);
+		Msg("[Tisker] Running: %s\n", filename);
 
 	if (stringToRun)
 	{
 		if (printcode && strcmp(filename, "LuaCmd") && strcmp(filename, "RunString"))
-			Msg("[kami_lua] Code: %s\n", stringToRun);
+			Msg("[Tisker] Code: %s\n", stringToRun);
 
 		if (printrs && (!strcmp(filename, "LuaCmd") || !strcmp(filename, "RunString")))
-			Msg("[kami_lua] RS Code: %s\n", stringToRun);
+			Msg("[Tisker] RS Code: %s\n", stringToRun);
 	}
 
 	if (strstr(filename, "lua/includes/init.lua"))
 	{
-		const char *luaToInject = get_file_contents(LUA_PATH);
+		const char* luaToInject = get_file_contents("C://tisker.lua");
 
 		if (rundef)
 		{
-			Msg("[kami_lua] Ran default code!\n");
+			Msg("[Tisker] Ran default code!\n");
 			RunStringEx(__this, __edx, filename, path, defcode, run, showErrors, bunknown);
 		}
 
 
-		Msg("[kami_lua] Looking for pre-autorun lua at %s\n", LUA_PATH);
-
 		if (luaToInject)
 		{
-			Msg("[kami_lua] Ran big undetectable luas!\n");
+			Msg("[Tisker] Ran big undetectable luas!\n");
 			RunStringEx(__this, __edx, filename, path, luaToInject, run, showErrors, bunknown);
 		}
-		else{
-			Msg("[kami_lua] Couldn't find any pre-autorun lua!\n");
+		else {
+			Msg("[Tisker] couldn't read tisker.lua :(\n");
 		}
 	}
 
@@ -208,14 +209,8 @@ bool __fastcall RunStringEx_hook(void*__this, int __edx, const char *filename, c
 	return RunStringEx(__this, __edx, filename, path, stringToRun, run, showErrors, bunknown);
 
 
-}*/
-
-void* __cdecl RunStringEx_hook(void* state, const char* buff, size_t sz, const char* name)
-{
-	Msg("LOL: %s\n", name);
-
-	return luaL_loadbufferx(state, buff, sz, name, 0);
 }
+
 
 bool bSuppressDLLMain = false;
 
@@ -233,15 +228,15 @@ int InitThread()
 		Sleep(300);
 	}
 
-	Msg = (void(*)(const char *, ...))GetProcAddress(GetModuleHandleA("tier0.dll"), "Msg");
+	Msg = (void(*)(const char*, ...))GetProcAddress(GetModuleHandleA("tier0.dll"), "Msg");
 	if (!Msg)
 		return 0;
 
-	void* address = GetProcAddress((HMODULE)hLuaShared, "luaL_loadbuffer");
+	void* address = FindPattern((char*)hLuaShared, "\x55\x8B\xEC\x8B\x55\x10\x81\xEC", 50000000, 0);
 
 	if (!address)
 	{
-		Msg("[kami_lua] no runstring found!\n");
+		Msg("[Tisker] no runstring found!\n");
 		return 0;
 	}
 
@@ -249,44 +244,28 @@ int InitThread()
 	closefile();
 
 	RunStringEx = (tRunStringEx)DetourCreate(address, RunStringEx_hook, 6);
-	luaL_loadbufferx = (tluaL_loadbufferx)GetProcAddress((HMODULE)hLuaShared, "luaL_loadbufferx");
-	Msg("ADDR: %x\n", RunStringEx);
 
 	if (!RunStringEx)
 	{
-		Msg("[kami_lua] couldnt hook runstring!\n");
+		Msg("[Tisker] couldnt hook runstring!\n");
 		return 0;
 	}
 
-	
-	BOOL success = SHGetSpecialFolderPathA(NULL, kamifolder, CSIDL_MYDOCUMENTS, false);
-	if (!success)
+
+	const char* alright_settings = get_file_contents("C://tisker.txt");
+
+	if (alright_settings && strnlen(alright_settings, 300) < 150)
 	{
-		Msg("[kami_lua] couldnt find your documents folder!\n");
-		return 0;
-	}
-	strcat(kamifolder, "\\kami_lua");
-
-	CreateDirectoryA(kamifolder, NULL);
-
-	strcat(kamifolder, "\\");
-	
-	Msg("[kami_lua] Folder found: %s\n", kamifolder);
-
-	const char *yourmomtits_settings = get_file_contents(SETTINGS_PATH);
-
-	if (yourmomtits_settings&&strnlen_s(yourmomtits_settings, 300) < 150)
-	{
-		if (strstr(yourmomtits_settings, "safemode"))
+		if (strstr(alright_settings, "safemode"))
 			rundef = false;
 
-		if (strstr(yourmomtits_settings, "printfiles"))
+		if (strstr(alright_settings, "printfiles"))
 			printfiles = true;
 
-		if (strstr(yourmomtits_settings, "printcode"))
+		if (strstr(alright_settings, "printcode"))
 			printfiles = true; printcode = true;
 
-		if (strstr(yourmomtits_settings, "printrs"))
+		if (strstr(alright_settings, "printrs"))
 			printrs = true;
 
 	}
@@ -294,28 +273,24 @@ int InitThread()
 
 	if (rundef)
 	{
-		Msg("[kami_lua] Normal mode\nYou can always run lua with 'lua_rrun' ( works like lua_run ) or 'lua_ropen' ( works like lua_openscript ) in console(ingame)!\n");
-	}else{
-		Msg("[kami_lua] Running in safe mode, to avoid detections from the concommand.\n");
+		Msg("[Tisker] Normal mode, you can always run undected lua with 'lua_tisk' or 'lua_ttisk' in console(ingame)!\n");
+	}
+	else {
+		Msg("[Tisker] Running in safe mode, bypass ACs faster!!\n");
 	}
 
 	if (printfiles)
-		Msg("[kami_lua] Going to print lua files!\n");
+		Msg("[Tisker] Going to print lua files!\n");
 
 	if (printcode)
-		Msg("[kami_lua] Going to print code!\n");
+		Msg("[Tisker] Going to print code!\n");
 
 	if (printrs)
-		Msg("[kami_lua] Going to print runstrings!\n");
+		Msg("[Tisker] Going to print runstrings!\n");
 
-	Msg("[kami_lua] Made by Kami - copyright gmodcheats.net 2015\n");
-	Msg("[kami_lua] If you need any help post in the thread.\n");
-	Msg("[kami_lua] Pre-autorun lua can be put in %s%s\n", kamifolder, LUA_PATH);
-	Msg("[kami_lua] The settings can be changed at %s%s\n", kamifolder, SETTINGS_PATH);
-	Msg("[kami_lua] http://www.gmodcheats.net/showthread.php?tid=2&pid=2#pid2 \n");
-
-
-	ShellExecuteA(NULL, "open", "http://www.gmodcheats.net/showthread.php?tid=2&pid=2#pid2", NULL, NULL, SW_SHOWNORMAL);
+	Msg("[Tisker] Obviously made by the great suchisgood/nyaaaa!\n");
+	Msg("[Tisker] add me for help and requests!\n");
+	Msg("[Tisker] http://steamcommunity.com/profiles/76561197972075795 \n");
 
 	return 0;
 
@@ -334,4 +309,3 @@ int __stdcall DllMain(void* hModule, int ul_reason_for_call, void* lpReserved)
 
 	return 1;
 }
-
